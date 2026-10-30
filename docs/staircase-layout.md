@@ -65,8 +65,8 @@ variables report `h_staircase` and `v_staircase`.
   static and pinned in one place.
 - **Strips are in tree order**, not most-recently-used order. MRU order would move windows on every focus change.
 - **Stacking depends on macOS.** Windows are raised with the Accessibility API (`AXRaise`) without activating
-  their app. That has only been tried on macOS 26 with a handful of apps (Opera, iTerm2, VS Code, Telegram,
-  Obsidian, Spotify). If a strip gets covered by another window, that is the first place to look.
+  their app. That has only been tried by the author on macOS 26 with Opera and iTerm2. If a strip gets covered
+  by another window, that is the first place to look.
 - Dragging a window in a staircase behaves like accordion.
 - Not tested with native macOS tabs, which upstream is still working on.
 
