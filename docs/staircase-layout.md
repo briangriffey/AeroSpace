@@ -36,6 +36,9 @@ Windows 1 and 2 show their left edge, 4 and 5 show their right edge. Click an ed
   to a neighbor needs nothing extra. When the stack is out of order (jumping across several windows, wrapping
   around, cycling fast), AeroSpace reads the real front-to-back order from the window server and raises only the
   windows that are wrong, one after another. Repairs are capped so a raise that macOS ignores can't loop.
+  Raising a background app's window can make macOS focus it on the way, so for up to 1 second AeroSpace doesn't
+  take such intermediate focus changes from macOS as the real focus, and gives the focus back to the intended
+  window when the restack is done.
 
 The layout code is in `Sources/AppBundle/layout/layoutRecursive.swift` (`layoutStaircase` and `raiseStaircase`).
 
@@ -102,4 +105,8 @@ To run the tests: `swiftly run swift test +6.4.0` (the test targets build with 6
 ## Credits
 
 AeroSpace is by [Nikita Bobko](https://github.com/nikitabobko) and is MIT licensed (see `LICENSE.txt`).
+The guard that stops macOS's accidental focus changes during a restack (`expectNativeFocus` in `focusCache.swift`)
+follows the approach in upstream PR [#2340](https://github.com/nikitabobko/AeroSpace/pull/2340) by kweel,
+which solves the same stacking problem for a different accordion style.
+
 This is an unofficial fork. Don't report problems with it to upstream.

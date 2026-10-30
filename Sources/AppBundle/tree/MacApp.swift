@@ -155,6 +155,8 @@ final class MacApp: AbstractApp {
             guard let window = windows.threadGuarded[windowId] else { return }
             AXUIElementPerformAction(window.ax, kAXRaiseAction as CFString)
         }
+        // The raise might have changed the native focus of the app. Make the next nativeFocus fully focus the window
+        lastNativeFocusedWindowId = nil
     }
 
     func setAxFrame(_ windowId: UInt32, _ topLeft: CGPoint?, _ size: CGSize?) {

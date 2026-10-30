@@ -270,11 +270,17 @@ extension TilingContainer {
         staircaseRaiseStates[id] = state
 
         let windows = order.flatMap { childWindows[$0] }
+        // Raising a window can make macOS focus it (e.g. by activating its app). Don't take that focus from
+        // macOS as the real one, and give the focus back to the focused window when done
+        let raisesOthers = order.contains { $0 != peak }
+        let focused = children[peak].mostRecentWindowRecursive
+        if raisesOthers, let focused { expectNativeFocus(focused) }
         staircaseRaiseTasks[id] = Task { @MainActor in
             for window in windows {
                 if Task.isCancelled { return }
                 await window.nativeRaise()
             }
+            if raisesOthers { focused?.nativeFocus() }
             staircaseRaiseTasks[id] = nil
         }
     }
