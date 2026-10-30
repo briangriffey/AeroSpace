@@ -45,6 +45,12 @@ struct LayoutCommand: Command {
                 return changeTilingLayout(io, targetLayout: .accordion, targetOrientation: .h, node: node)
             case .v_accordion:
                 return changeTilingLayout(io, targetLayout: .accordion, targetOrientation: .v, node: node)
+            case .h_staircase:
+                return changeTilingLayout(io, targetLayout: .staircase, targetOrientation: .h, node: node)
+            case .v_staircase:
+                return changeTilingLayout(io, targetLayout: .staircase, targetOrientation: .v, node: node)
+            case .staircase:
+                return changeTilingLayout(io, targetLayout: .staircase, targetOrientation: nil, node: node)
             case .h_tiles:
                 return changeTilingLayout(io, targetLayout: .tiles, targetOrientation: .h, node: node)
             case .v_tiles:
@@ -104,6 +110,9 @@ extension ConventionalWindowParentCases {
     fileprivate func matchesDescription(_ layout: LayoutCmdArgs.LayoutDescription) -> Bool {
         return switch layout {
             case .accordion:   tilingContainerOrNil?.layout == .accordion
+            case .staircase:   tilingContainerOrNil?.layout == .staircase
+            case .h_staircase: tilingContainerOrNil.map { $0.layout == .staircase && $0.orientation == .h } == true
+            case .v_staircase: tilingContainerOrNil.map { $0.layout == .staircase && $0.orientation == .v } == true
             case .tiles:       tilingContainerOrNil?.layout == .tiles
             case .horizontal:  tilingContainerOrNil?.orientation == .h
             case .vertical:    tilingContainerOrNil?.orientation == .v

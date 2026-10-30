@@ -24,9 +24,9 @@ public struct LayoutCmdArgs: CmdArgs {
     }
 
     public enum LayoutDescription: String, CaseIterable, Equatable, Sendable {
-        case accordion, tiles
+        case accordion, staircase, tiles
         case horizontal, vertical
-        case h_accordion, v_accordion, h_tiles, v_tiles
+        case h_accordion, v_accordion, h_staircase, v_staircase, h_tiles, v_tiles
         case tiling, floating
     }
 
@@ -67,6 +67,7 @@ func parseLayoutCmdArgs(_ args: StrArrSlice) -> ParsedCmd<LayoutCmdArgs> {
                 switch $0 {
                     case .floating, .tiling: false
                     case .accordion, .h_accordion, .h_tiles,
+                         .staircase, .h_staircase, .v_staircase,
                          .horizontal, .tiles, .v_accordion, .v_tiles,
                          .vertical: true
                 }

@@ -329,6 +329,7 @@ In total, AeroSpace provides 4 possible layouts:
 - `v_tiles` vertical tiles (in i3, it’s called "vertical split")
 - `h_accordion` horizontal accordion (analog of i3’s "tabbed layout")
 - `v_accordion` vertical accordion (analog of i3’s "stacked layout")
+- `h_staircase` and `v_staircase` accordion where every window sticks out. See <<staircase>>
 
 <<tree,From the previous section>>, you’re already familiar with the `tiles` layout.
 
@@ -350,10 +351,15 @@ While in a `v_accordion`, you can navigate the windows using the `focus (up|down
 
 Accordion padding is configurable via `accordion-padding` option.
 
-By default only the two neighbors of the focused window stick out.
-Set `accordion-cascade = true` to make every window in the accordion stick out, so that you can click any of them.
-Windows are offset from each other by a fixed step in tree order, so focus changes don't move them.
-The strips shrink as windows are added, so that the cascade takes at most `accordion-cascade-max-percent` percent of the container.
+[#staircase]
+=== Staircase layout
+
+`h_staircase` and `v_staircase` are like accordion, but every window sticks out instead of only the two neighbors of the focused one, so you can click any of them.
+All windows have the same size and window `i` is offset by `i * staircase-padding` in tree order.
+Focus changes don't move windows, they only change which window is in front.
+The strips shrink as windows are added, so that the staircase takes at most `staircase-max-percent` percent of the container.
+
+Navigate with `focus (left|right)` in `h_staircase` and `focus (up|down)` in `v_staircase`.
 
 [#normalization]
 === Normalization

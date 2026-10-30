@@ -240,6 +240,8 @@ private func toLayoutString(tc: TilingContainer) -> String {
         case (.tiles, .v): return LayoutCmdArgs.LayoutDescription.v_tiles.rawValue
         case (.accordion, .h): return LayoutCmdArgs.LayoutDescription.h_accordion.rawValue
         case (.accordion, .v): return LayoutCmdArgs.LayoutDescription.v_accordion.rawValue
+        case (.staircase, .h): return LayoutCmdArgs.LayoutDescription.h_staircase.rawValue
+        case (.staircase, .v): return LayoutCmdArgs.LayoutDescription.v_staircase.rawValue
     }
 }
 

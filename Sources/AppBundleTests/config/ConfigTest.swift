@@ -577,23 +577,25 @@ final class ConfigTest: XCTestCase {
         )
     }
 
-    func testParseAccordionCascade() {
-        assertEquals(parseConfig("").config.accordionCascade, false)
+    func testParseStaircase() {
+        assertEquals(parseConfig("").config.staircasePadding, 30)
         let result = parseConfig(
             """
-            accordion-cascade = true
-            accordion-cascade-max-percent = 40
+            staircase-padding = 20
+            staircase-max-percent = 40
+            default-root-container-layout = 'staircase'
             """,
         )
         assertEquals(result.errors, [])
-        assertEquals(result.config.accordionCascade, true)
-        assertEquals(result.config.accordionCascadeMaxPercent, 40)
+        assertEquals(result.config.staircasePadding, 20)
+        assertEquals(result.config.staircaseMaxPercent, 40)
+        assertEquals(result.config.defaultRootContainerLayout, .staircase)
     }
 
-    func testAccordionCascadeStep() {
-        assertEquals(accordionCascadeStep(sideCount: 0, length: 1000, padding: 30, maxPercent: 25), 0)
-        assertEquals(accordionCascadeStep(sideCount: 3, length: 1000, padding: 30, maxPercent: 25), 30) // fits
-        assertEquals(accordionCascadeStep(sideCount: 10, length: 1000, padding: 30, maxPercent: 25), 25) // 250 / 10
+    func testStaircaseStep() {
+        assertEquals(staircaseStep(sideCount: 0, length: 1000, padding: 30, maxPercent: 25), 0)
+        assertEquals(staircaseStep(sideCount: 3, length: 1000, padding: 30, maxPercent: 25), 30) // fits
+        assertEquals(staircaseStep(sideCount: 10, length: 1000, padding: 30, maxPercent: 25), 25) // 250 / 10
     }
 
     func testParseDefaultRootContainerLayout() {

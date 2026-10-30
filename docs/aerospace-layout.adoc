@@ -46,7 +46,7 @@ include::./util/conditional-arguments-header.adoc[]
 <target-layout>::
 Possible values:
 +
-* `h_tiles|v_tiles|h_accordion|v_accordion` - Change both tiling layout and orientation in one go
+* `h_tiles|v_tiles|h_accordion|v_accordion|h_staircase|v_staircase` - Change both tiling layout and orientation in one go
 * `tiles|accordion` - Change tiling layout but preserve orientation
 * `horizontal|vertical` - Change orientation but preserve layout
 * `tiling|floating` - Toggle between floating/tiling mode

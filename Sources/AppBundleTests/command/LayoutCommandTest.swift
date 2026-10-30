@@ -10,6 +10,7 @@ final class LayoutCommandTest: XCTestCase {
         assertNil(parseCommand("layout v_tiles h_tiles").errorOrNil)
         assertNil(parseCommand("layout tiling").errorOrNil)
         assertNil(parseCommand("layout floating tiling").errorOrNil)
+        assertNil(parseCommand("layout h_staircase v_staircase staircase").errorOrNil)
         assertNil(parseCommand("layout --window-id 1 horizontal vertical").errorOrNil)
 
         testParseCommandFail(
