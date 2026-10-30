@@ -1,5 +1,9 @@
 # AeroSpace Beta [![Build](https://github.com/nikitabobko/AeroSpace/actions/workflows/build.yml/badge.svg?branch=main)](https://github.com/nikitabobko/AeroSpace/actions/workflows/build.yml)
 
+> **Fork with a `staircase` layout.** This is an unofficial fork of AeroSpace that adds `h_staircase` / `v_staircase`:
+> an accordion where every window sticks out, so all of them can be seen and clicked. See
+> [docs/staircase-layout.md](./docs/staircase-layout.md). Upstream: [nikitabobko/AeroSpace](https://github.com/nikitabobko/AeroSpace).
+
 <img src="./resources/Assets.xcassets/AppIcon.appiconset/icon.png" width="40%" align="right">
 
 AeroSpace is an i3-like tiling window manager for macOS
