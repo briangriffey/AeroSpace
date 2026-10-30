@@ -359,6 +359,7 @@ All windows have the same size and window `i` is offset by `i * staircase-paddin
 Focus changes don't move windows, they only change which window is in front.
 The strips shrink as windows are added, so that the staircase takes at most `staircase-max-percent` percent of the container.
 
+Bind `layout staircase horizontal vertical` to a single key to enter staircase and then flip its orientation.
 Navigate with `focus (left|right)` in `h_staircase` and `focus (up|down)` in `v_staircase`.
 
 [#normalization]

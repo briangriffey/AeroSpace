@@ -86,6 +86,21 @@ final class LayoutCommandTest: XCTestCase {
         assertEquals(root.orientation, .h)
     }
 
+    func testToggleBetween_staircaseFlipsOrientation() async {
+        let root = Workspace.get(byName: name).rootTilingContainer.apply {
+            assertEquals(TestWindow.new(id: 1, parent: $0).focusWindow(), true)
+            TestWindow.new(id: 2, parent: $0)
+        }
+
+        // One keybinding: enter staircase, then flip between horizontal and vertical
+        let expected: [(Layout, Orientation)] = [(.staircase, .h), (.staircase, .v), (.staircase, .h), (.staircase, .v)]
+        for (layout, orientation) in expected {
+            await parseCommand("layout staircase horizontal vertical").cmdOrDie.run(.defaultEnv, .emptyStdin)
+            assertEquals(root.layout, layout)
+            assertEquals(root.orientation, orientation)
+        }
+    }
+
     func testToggleBetween_allMatch_fails() async {
         let root = Workspace.get(byName: name).rootTilingContainer.apply {
             assertEquals(TestWindow.new(id: 1, parent: $0).focusWindow(), true)

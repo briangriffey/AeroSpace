@@ -48,12 +48,19 @@ staircase-padding = 30        # size of each visible strip, in points
 staircase-max-percent = 25    # the staircase never takes more than this share of the container
 
 [mode.main.binding]
-alt-s = 'layout v_staircase'
+alt-s = 'layout staircase horizontal vertical'
 alt-w = 'layout h_staircase'
 ```
 
 Commands: `layout h_staircase`, `layout v_staircase`, `layout staircase` (keeps the current orientation).
-They work in `layout` toggles and with `--root`. Navigate with `focus left|right` in `h_staircase`
+They work in `layout` toggles and with `--root`.
+
+One keybinding is enough. `layout` picks the first argument the container doesn't already match, so
+`layout staircase horizontal vertical` enters staircase, then flips between horizontal and vertical on every press:
+
+```toml
+alt-s = 'layout staircase horizontal vertical'
+``` Navigate with `focus left|right` in `h_staircase`
 and `focus up|down` in `v_staircase`, same as accordion.
 
 `list-windows` and the `%{window-parent-container-layout}` / `%{workspace-root-container-layout}` format
