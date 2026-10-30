@@ -40,6 +40,11 @@ Windows 1 and 2 show their left edge, 4 and 5 show their right edge. Click an ed
   take such intermediate focus changes from macOS as the real focus, and gives the focus back to the intended
   window when the restack is done.
 
+One change is not specific to staircase: when focus moves within the same workspace, the newly focused window is now
+raised *before* the layout runs instead of after. AX requests of an app run in sequence, so before this the focus
+waited for the frames of all that app's windows, and the previously focused window flashed in its new frame meanwhile.
+It applies to every layout (approach from upstream PR [#2340](https://github.com/nikitabobko/AeroSpace/pull/2340)).
+
 The layout code is in `Sources/AppBundle/layout/layoutRecursive.swift` (`layoutStaircase` and `raiseStaircase`).
 
 ## Usage

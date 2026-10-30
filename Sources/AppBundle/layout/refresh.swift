@@ -79,8 +79,17 @@ func runLightSession<T>(
 
         updateTrayText()
         SecureInputPanel.shared.refresh()
+        // AX requests of the same app run sequentially. If the focus moves within the same workspace, focus the window
+        // before the layout. Otherwise, the focus waits until the frames of all the app windows are set, and the
+        // previously focused window flashes in its new frame meanwhile. (Within the same workspace, the window is
+        // already visible, so it's safe to focus it before the layout.) The approach is from
+        // https://github.com/nikitabobko/AeroSpace/pull/2340
+        let nativeFocusBeforeLayout = focusBefore != focusAfter && focusBefore?.visualWorkspace == focusAfter?.visualWorkspace
+        if nativeFocusBeforeLayout {
+            focusAfter?.nativeFocus() // syncFocusToMacOs
+        }
         if !event.isFocusFollowsMouse { try await layoutWorkspaces() }
-        if focusBefore != focusAfter {
+        if focusBefore != focusAfter && !nativeFocusBeforeLayout {
             focusAfter?.nativeFocus() // syncFocusToMacOs
         }
         if !event.isFocusFollowsMouse { scheduleCancellableCompleteRefreshSession(event) }
