@@ -350,6 +350,11 @@ While in a `v_accordion`, you can navigate the windows using the `focus (up|down
 
 Accordion padding is configurable via `accordion-padding` option.
 
+By default only the two neighbors of the focused window stick out.
+Set `accordion-cascade = true` to make every window in the accordion stick out, so that you can click any of them.
+Windows are offset from each other by a fixed step in tree order, so focus changes don't move them.
+The strips shrink as windows are added, so that the cascade takes at most `accordion-cascade-max-percent` percent of the container.
+
 [#normalization]
 === Normalization
 

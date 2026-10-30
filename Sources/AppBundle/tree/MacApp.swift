@@ -147,6 +147,16 @@ final class MacApp: AbstractApp {
         }
     }
 
+    /// Raise without activating the app or changing focus. Returns when the raise was performed,
+    /// so that callers can build up a z-order one window at a time
+    @MainActor func nativeRaise(_ windowId: UInt32) async {
+        if serverArgs.isReadOnly { return }
+        try? await thread?.runInLoop(.cancellable) { [windows] _ in
+            guard let window = windows.threadGuarded[windowId] else { return }
+            AXUIElementPerformAction(window.ax, kAXRaiseAction as CFString)
+        }
+    }
+
     func setAxFrame(_ windowId: UInt32, _ topLeft: CGPoint?, _ size: CGSize?) {
         setFrameJobs.removeValue(forKey: windowId)?.cancel()
         setFrameJobs[windowId] = withWindowAsync(windowId, .cancellable) { [axApp] window, job in

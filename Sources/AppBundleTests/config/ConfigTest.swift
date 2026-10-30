@@ -577,6 +577,25 @@ final class ConfigTest: XCTestCase {
         )
     }
 
+    func testParseAccordionCascade() {
+        assertEquals(parseConfig("").config.accordionCascade, false)
+        let result = parseConfig(
+            """
+            accordion-cascade = true
+            accordion-cascade-max-percent = 40
+            """,
+        )
+        assertEquals(result.errors, [])
+        assertEquals(result.config.accordionCascade, true)
+        assertEquals(result.config.accordionCascadeMaxPercent, 40)
+    }
+
+    func testAccordionCascadeStep() {
+        assertEquals(accordionCascadeStep(sideCount: 0, length: 1000, padding: 30, maxPercent: 25), 0)
+        assertEquals(accordionCascadeStep(sideCount: 3, length: 1000, padding: 30, maxPercent: 25), 30) // fits
+        assertEquals(accordionCascadeStep(sideCount: 10, length: 1000, padding: 30, maxPercent: 25), 25) // 250 / 10
+    }
+
     func testParseDefaultRootContainerLayout() {
         let result = parseConfig(
             """

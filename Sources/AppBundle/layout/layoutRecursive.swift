@@ -56,6 +56,36 @@ extension TreeNode {
     }
 }
 
+/// Every window behind the focused one leaves a visible strip, so any of them can be clicked.
+/// Strip size is `accordion-padding`, shrunk so that the cascade never takes more than
+/// `accordion-cascade-max-percent` of the container.
+func accordionCascadeStep(sideCount: Int, length: CGFloat, padding: CGFloat, maxPercent: CGFloat) -> CGFloat {
+    if sideCount <= 0 { return 0 }
+    return min(padding, length * maxPercent / 100 / CGFloat(sideCount))
+}
+
+/// Bookkeeping that stops a raise macOS ignores from being retried (and flickering) forever
+private struct CascadeRaiseState {
+    let windowIds: [UInt32] // children order, flattened
+    let peak: Int // index of the focused child
+    var repairs: Int
+}
+
+private let maxCascadeRepairs = 2
+
+@MainActor private var cascadeRaiseStates: [ObjectIdentifier: CascadeRaiseState] = [:]
+@MainActor private var cascadeRaiseTasks: [ObjectIdentifier: Task<Void, Never>] = [:]
+
+/// Window server's front-to-back order: CGWindowID -> position, 0 is frontmost
+private func currentWindowServerOrder() -> [UInt32: Int] {
+    let info = CGWindowListCopyWindowInfo([.optionOnScreenOnly], kCGNullWindowID) as? [[String: Any]] ?? []
+    var result: [UInt32: Int] = [:]
+    for (position, window) in info.enumerated() {
+        if let number = (window[kCGWindowNumber as String] as? NSNumber)?.uint32Value { result[number] = position }
+    }
+    return result
+}
+
 private struct LayoutContext {
     let workspace: Workspace
     let resolvedGaps: ResolvedGaps
@@ -143,6 +173,10 @@ extension TilingContainer {
     @MainActor
     fileprivate func layoutAccordion(_ point: CGPoint, width: CGFloat, height: CGFloat, virtual: Rect, _ context: LayoutContext) async throws {
         guard let mruIndex: Int = mostRecentChild?.ownIndex else { return }
+        if config.accordionCascade {
+            try await layoutAccordionCascade(point, width: width, height: height, virtual: virtual, children, mruIndex, context)
+            return
+        }
         for (index, child) in children.enumerated() {
             let padding = CGFloat(config.accordionPadding)
             let (lPadding, rPadding): (CGFloat, CGFloat) = switch index {
@@ -171,6 +205,81 @@ extension TilingContainer {
                         context,
                     )
             }
+        }
+    }
+
+    /// A static staircase: every child has the same size and child `i` is offset by `i * step`, so no layout
+    /// depends on which child is focused and focus changes move nothing. With the stacking peaking at the focused
+    /// child, children before it show their start edge and children after it show their end edge.
+    @MainActor
+    fileprivate func layoutAccordionCascade(
+        _ point: CGPoint, width: CGFloat, height: CGFloat, virtual: Rect,
+        _ children: [TreeNode], _ mruIndex: Int, _ context: LayoutContext,
+    ) async throws {
+        let length = orientation == .h ? width : height
+        let step = accordionCascadeStep(
+            sideCount: children.count - 1, length: length,
+            padding: CGFloat(config.accordionPadding), maxPercent: CGFloat(config.accordionCascadeMaxPercent),
+        )
+        let childLength = length - CGFloat(children.count - 1) * step
+        for (index, child) in children.enumerated() {
+            let offset = CGFloat(index) * step
+            switch orientation {
+                case .h:
+                    try await child.layoutRecursive(point + CGPoint(x: offset, y: 0), width: childLength, height: height, virtual: virtual, context)
+                case .v:
+                    try await child.layoutRecursive(point + CGPoint(x: 0, y: offset), width: width, height: childLength, virtual: virtual, context)
+            }
+        }
+        raiseCascade(children, mruIndex)
+    }
+
+    /// macOS decides z-order, not us. The stacking has to peak at the focused child and fall off to both sides.
+    /// Focusing a child already raises it natively, so moving focus to a neighbor usually needs nothing from us.
+    /// Anything else (wrapping around, jumping over several children, fast cycling) is found by reading the real
+    /// stacking order, and only the children that are out of order get raised, one after another.
+    @MainActor
+    fileprivate func raiseCascade(_ children: [TreeNode], _ peak: Int) {
+        let id = ObjectIdentifier(self)
+        let childWindows = children.map { $0.allLeafWindowsRecursive }
+        let windowIds = childWindows.flatMap { $0 }.map(\.windowId)
+        let sameState = cascadeRaiseStates[id].map { $0.windowIds == windowIds && $0.peak == peak } ?? false
+        if sameState && cascadeRaiseTasks[id] != nil { return } // already being fixed
+        var state = sameState ? cascadeRaiseStates[id]! : CascadeRaiseState(windowIds: windowIds, peak: peak, repairs: 0)
+        cascadeRaiseTasks[id]?.cancel()
+        cascadeRaiseTasks[id] = nil
+
+        let order: [Int] // children to raise in order, focused one last
+        let serverOrder = currentWindowServerOrder()
+        // How far back a child is: the frontmost of its windows
+        let depth: [Int] = childWindows.map { windows in
+            windows.compactMap { serverOrder[$0.windowId] }.min() ?? Int.max
+        }
+        if depth.contains(Int.max) && !sameState {
+            // Can't read the order, so build the whole stack once, farthest first
+            order = children.indices.filter { $0 != peak }.sorted { abs($0 - peak) > abs($1 - peak) } + [peak]
+        } else if depth.contains(Int.max) {
+            order = []
+        } else {
+            let firstBadBefore = (0 ..< peak).first { depth[$0] < depth[$0 + 1] } // should be further back than the next one
+            let lastBadAfter = (peak + 1 ..< children.count).last { depth[$0] < depth[$0 - 1] }
+            var fix: [Int] = []
+            if let firstBadBefore { fix += Array(firstBadBefore ..< peak) }
+            if let lastBadAfter { fix += (peak + 1 ... lastBadAfter).reversed() }
+            order = fix.isEmpty ? [] : fix + [peak]
+        }
+        if order.isEmpty { cascadeRaiseStates[id] = state; return }
+        if state.repairs >= maxCascadeRepairs { cascadeRaiseStates[id] = state; return }
+        state.repairs += 1
+        cascadeRaiseStates[id] = state
+
+        let windows = order.flatMap { childWindows[$0] }
+        cascadeRaiseTasks[id] = Task { @MainActor in
+            for window in windows {
+                if Task.isCancelled { return }
+                await window.nativeRaise()
+            }
+            cascadeRaiseTasks[id] = nil
         }
     }
 }

@@ -26,6 +26,12 @@ enable-normalization-opposite-orientation-for-nested-containers = true
 # You can set 0 to disable the padding feature
 accordion-padding = 30
 
+# When true, every window in an accordion leaves a visible strip (a cascade) instead of only the two neighbors
+# of the focused window. Windows are offset from each other by a fixed step in tree order, so focus changes don't move them. Strips shrink so that the cascade never takes more than
+# 'accordion-cascade-max-percent' percent of the container
+accordion-cascade = false
+accordion-cascade-max-percent = 25
+
 # Possible values: tiles|accordion
 default-root-container-layout = 'tiles'
 
