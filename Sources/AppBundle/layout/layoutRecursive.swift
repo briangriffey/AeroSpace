@@ -231,52 +231,38 @@ extension TilingContainer {
     }
 
     /// macOS decides z-order, not us. The stacking has to peak at the focused child and fall off to both sides.
-    /// Focusing a child already raises it natively, so moving focus to a neighbor usually needs nothing from us.
+    /// Focusing a child already raises it natively, so moving focus to a neighbor needs nothing from us.
     /// Anything else (wrapping around, jumping over several children, fast cycling) is found by reading the real
     /// stacking order, and only the children that are out of order get raised, one after another.
+    /// The native raise of the focused window is asynchronous. Judging the stacking before it lands makes the
+    /// old window look like it needs to be raised back, which shows up as flicker, so wait for it first.
     @MainActor
     fileprivate func raiseStaircase(_ children: [TreeNode], _ peak: Int) {
         let id = ObjectIdentifier(self)
         let childWindows = children.map { $0.allLeafWindowsRecursive }
         let windowIds = childWindows.flatMap { $0 }.map(\.windowId)
         let sameState = staircaseRaiseStates[id].map { $0.windowIds == windowIds && $0.peak == peak } ?? false
-        if sameState && staircaseRaiseTasks[id] != nil { return } // already being fixed
-        var state = sameState ? staircaseRaiseStates[id]! : StaircaseRaiseState(windowIds: windowIds, peak: peak, repairs: 0)
+        if sameState && staircaseRaiseTasks[id] != nil { return } // already being looked at
+        if !sameState { staircaseRaiseStates[id] = StaircaseRaiseState(windowIds: windowIds, peak: peak, repairs: 0) }
         staircaseRaiseTasks[id]?.cancel()
-        staircaseRaiseTasks[id] = nil
-
-        let order: [Int] // children to raise in order, focused one last
-        let serverOrder = currentWindowServerOrder()
-        // How far back a child is: the frontmost of its windows
-        let depth: [Int] = childWindows.map { windows in
-            windows.compactMap { serverOrder[$0.windowId] }.min() ?? Int.max
-        }
-        if depth.contains(Int.max) && !sameState {
-            // Can't read the order, so build the whole stack once, farthest first
-            order = children.indices.filter { $0 != peak }.sorted { abs($0 - peak) > abs($1 - peak) } + [peak]
-        } else if depth.contains(Int.max) {
-            order = []
-        } else {
-            let firstBadBefore = (0 ..< peak).first { depth[$0] < depth[$0 + 1] } // should be further back than the next one
-            let lastBadAfter = (peak + 1 ..< children.count).last { depth[$0] < depth[$0 - 1] }
-            var fix: [Int] = []
-            if let firstBadBefore { fix += Array(firstBadBefore ..< peak) }
-            if let lastBadAfter { fix += (peak + 1 ... lastBadAfter).reversed() }
-            order = fix.isEmpty ? [] : fix + [peak]
-        }
-        if order.isEmpty { staircaseRaiseStates[id] = state; return }
-        if state.repairs >= maxStaircaseRepairs { staircaseRaiseStates[id] = state; return }
-        state.repairs += 1
-        staircaseRaiseStates[id] = state
-
-        let windows = order.flatMap { childWindows[$0] }
-        // Raising a window can make macOS focus it (e.g. by activating its app). Don't take that focus from
-        // macOS as the real one, and give the focus back to the focused window when done
-        let raisesOthers = order.contains { $0 != peak }
         let focused = children[peak].mostRecentWindowRecursive
-        if raisesOthers, let focused { expectNativeFocus(focused) }
         staircaseRaiseTasks[id] = Task { @MainActor in
-            for window in windows {
+            var plan = staircaseRepairPlan(childWindows, peak, isNewState: !sameState)
+            for _ in 0 ..< 10 where !plan.focusedInFront && plan.canReadOrder {
+                try? await Task.sleep(for: .milliseconds(30))
+                if Task.isCancelled { return }
+                plan = staircaseRepairPlan(childWindows, peak, isNewState: !sameState)
+            }
+            if plan.order.isEmpty || (staircaseRaiseStates[id]?.repairs ?? 0) >= maxStaircaseRepairs {
+                staircaseRaiseTasks[id] = nil
+                return
+            }
+            staircaseRaiseStates[id]?.repairs += 1
+            // Raising a window can make macOS focus it (e.g. by activating its app). Don't take that focus from
+            // macOS as the real one, and give the focus back to the focused window when done
+            let raisesOthers = plan.order.contains { $0 != peak }
+            if raisesOthers, let focused { expectNativeFocus(focused) }
+            for window in plan.order.flatMap({ childWindows[$0] }) {
                 if Task.isCancelled { return }
                 await window.nativeRaise()
             }
@@ -284,4 +270,32 @@ extension TilingContainer {
             staircaseRaiseTasks[id] = nil
         }
     }
+}
+
+private struct StaircaseRepairPlan {
+    let order: [Int] // children to raise in order, focused one last. Empty if the stacking is fine
+    let canReadOrder: Bool
+    let focusedInFront: Bool
+}
+
+/// Compares the real stacking order with the one the staircase needs
+@MainActor
+private func staircaseRepairPlan(_ childWindows: [[Window]], _ peak: Int, isNewState: Bool) -> StaircaseRepairPlan {
+    let serverOrder = currentWindowServerOrder()
+    // How far back a child is: the frontmost of its windows
+    let depth: [Int] = childWindows.map { windows in
+        windows.compactMap { serverOrder[$0.windowId] }.min() ?? Int.max
+    }
+    if depth.contains(Int.max) {
+        // Can't read the order. Build the whole stack once, farthest first
+        let order = isNewState ? childWindows.indices.filter { $0 != peak }.sorted { abs($0 - peak) > abs($1 - peak) } + [peak] : []
+        return StaircaseRepairPlan(order: order, canReadOrder: false, focusedInFront: false)
+    }
+    let focusedInFront = depth[peak] == depth.min()
+    let firstBadBefore = (0 ..< peak).first { depth[$0] < depth[$0 + 1] } // should be further back than the next one
+    let lastBadAfter = (peak + 1 ..< childWindows.count).last { depth[$0] < depth[$0 - 1] }
+    var fix: [Int] = []
+    if let firstBadBefore { fix += Array(firstBadBefore ..< peak) }
+    if let lastBadAfter { fix += (peak + 1 ... lastBadAfter).reversed() }
+    return StaircaseRepairPlan(order: fix.isEmpty ? [] : fix + [peak], canReadOrder: true, focusedInFront: focusedInFront)
 }
